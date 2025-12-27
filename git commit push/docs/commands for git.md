@@ -14,3 +14,4 @@ Developers often remember it by the acronym ADOG: git log --all --decorate --one
 ```powershell
 git log --all --decorate --oneline --graph
 ```
+

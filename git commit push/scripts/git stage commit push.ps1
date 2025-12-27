@@ -1,68 +1,108 @@
-# 1. Verification & Context
-Write-Host "--- Git Commit & Push Helper ---" -ForegroundColor Cyan
+# 1. Verification & Context (Design Header)
+$ErrorActionPreference = "Stop"
+
 $currentDir = Get-Location
-Write-Host "Target Path: $currentDir" -ForegroundColor Gray
+$currentBranch = (git branch --show-current)
 
-# 2. Initial Readiness Prompt
-Write-Host "`nAre you ready to stage files for commit? (Yes/No)" -ForegroundColor White -BackgroundColor DarkMagenta
-$ready = Read-Host "Selection"
+Write-Host "`n****************************************************" -ForegroundColor White
+Write-Host " CONTEXT HEADER: $currentDir" -ForegroundColor Cyan
+Write-Host " BRANCH        : $currentBranch" -ForegroundColor Cyan
+Write-Host "****************************************************" -ForegroundColor White
 
-if ($ready -notmatch "^(y|yes)$") {
-    Write-Host "Exiting script. No changes were staged." -ForegroundColor Yellow
-    return
+# --- 2. Check for New Project vs. Existing ---
+if (!(Test-Path ".git")) {
+    Write-Host "`n[!] No Git repository detected." -ForegroundColor Yellow
+    Write-Host "Options: [Y] Initialize New | [Q] Quit: " -ForegroundColor White -NoNewline
+    $setupNew = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
+    Write-Host $setupNew
+
+    if ($setupNew -eq "y") {
+        git init
+        $repoUrl = Read-Host " Enter GitHub Repository URL"
+        if (![string]::IsNullOrWhiteSpace($repoUrl)) {
+            git remote add origin $repoUrl
+            git branch -M main
+            Write-Host "Initialized and linked to origin." -ForegroundColor Green
+        }
+    } else { return }
 }
 
-# 3. Stage Files (The "." captures EVERYTHING new since last commit)
-Write-Host "`nStaging all files..." -ForegroundColor Gray
-git add .
-Write-Host "Current Staged Changes:" -ForegroundColor Magenta
-git status -s
+# --- 3. The SMART PULL Step ---
+Write-Host "`nChecking for updates (Git Pull)... " -ForegroundColor Cyan -NoNewline
+git pull origin $currentBranch --rebase
 
-# 4. Description Loop
-$finalMsg = ""
-$accept = $false
-
-while (-not $accept) {
-    $commitMsg = Read-Host "`nEnter Commit Description/Notes"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "`n[!] PULL BLOCKED: History mismatch." -ForegroundColor Yellow
+    Write-Host "Options: [F]orce Local | [Q]uit: " -ForegroundColor White -NoNewline
+    $fixChoice = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
+    Write-Host $fixChoice
     
-    if ([string]::IsNullOrWhiteSpace($commitMsg)) {
-        Write-Host "!! Description cannot be empty !!" -ForegroundColor Red
-        continue
-    }
-
-    Write-Host "`n--- REVIEW DESCRIPTION ---" -ForegroundColor Cyan
-    Write-Host "`"$commitMsg`"" -ForegroundColor White -BackgroundColor Black
-    $review = Read-Host "Review & Accept: [Y]es / [Q]uit / [R]edo"
-
-    if ($review -match "^q") {
-        Write-Host "Aborting. Files remain staged but not committed." -ForegroundColor Red
+    if ($fixChoice -eq "f") {
+        $GLOBAL:ForcePushRequired = $true
+    } else {
+        git rebase --abort 2>$null
         return
     }
-    elseif ($review -match "^y") {
-        $finalMsg = $commitMsg
-        $accept = $true
-    }
+} else {
+    Write-Host "Synced." -ForegroundColor Gray
 }
 
-# 5. Final Commit Check
-Write-Host "`n!!! LAST CHECK !!!" -ForegroundColor Black -BackgroundColor Yellow
-$lastCheck = Read-Host "Commit these changes locally? [Y]es / [Q]uit"
+# --- 4. Readiness & Staging ---
+Write-Host "`nStage files for commit? [Y]es | [Q]uit: " -ForegroundColor White -NoNewline
+$ready = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
+Write-Host $ready
 
-if ($lastCheck -match "^y") {
-    git commit -m "$finalMsg"
-    Write-Host "SUCCESS: Changes committed locally." -ForegroundColor Green
-    
-    # 6. Push to GitHub Option
-    $pushCheck = Read-Host "`nWould you like to PUSH (Upload) these changes to GitHub now? [Y]es / [N]o"
-    if ($pushCheck -match "^y") {
-        Write-Host "Pushing to GitHub..." -ForegroundColor Cyan
-        git push
-        Write-Host "SUCCESS: Repository is now synced with GitHub!" -ForegroundColor Green
+if ($ready -eq "y") {
+    Write-Host "Staging files..." -ForegroundColor Gray
+    git add .
+    git status -s
+} else { return }
+
+# --- 5. Description Input ---
+Write-Host "`nEnter Commit Description: " -ForegroundColor White -NoNewline
+$commitMsg = Read-Host 
+if ([string]::IsNullOrWhiteSpace($commitMsg)) { 
+    Write-Host "!! Description cannot be empty !!" -ForegroundColor Red
+    return 
+}
+
+# --- 6. Review & Logic ---
+Write-Host "Review: `"$commitMsg`"" -ForegroundColor Cyan
+Write-Host "Options: [Y] Accept | [R]edo | [Q]uit: " -ForegroundColor White -NoNewline
+$review = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
+Write-Host $review
+
+if ($review -eq "q") { return }
+if ($review -eq "r") { 
+    Write-Host "Redo selected. Please restart script." -ForegroundColor Yellow
+    return 
+}
+
+# --- 7. Finalize (Commit & Push) ---
+Write-Host "`nFinalize & Push to GitHub? [Y]es | [Q]uit: " -ForegroundColor White -NoNewline
+$lastCheck = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
+Write-Host $lastCheck
+
+if ($lastCheck -eq "y") {
+    git commit -m "$commitMsg"
+    Write-Host "Local commit saved." -ForegroundColor Gray
+
+    if ($GLOBAL:ForcePushRequired) {
+        git push origin $currentBranch --force
+        $GLOBAL:ForcePushRequired = $false 
     } else {
-        Write-Host "Skipping push. Your changes are saved locally but NOT on GitHub." -ForegroundColor Yellow
+        $prevErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
+        $upstream = git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null
+        $ErrorActionPreference = $prevErrorAction
+
+        if ($null -eq $upstream -or $LASTEXITCODE -ne 0) {
+            git push -u origin $currentBranch
+        } else {
+            git push
+        }
     }
-} else {
-    Write-Host "Commit cancelled. Changes are still staged." -ForegroundColor Yellow
+    Write-Host "Sync Complete!" -ForegroundColor Green
 }
 
 Write-Host "`nScript Complete!" -ForegroundColor Cyan
