@@ -31,7 +31,7 @@ This is how you look at every save point you have ever made. It is your projectâ
    3. The "Deep Dive": git log -p This shows the actual code changes (the "diff") inside every commit.
    4. The Search: git log --grep="bug fix" This searches your history for any commit message containing "bug fix.
 Examples:
-git log --all --oneline --graph --decorateThe "Big Three" Combo:  (This is the "Pro" view included in your script).
+git log --all --oneline --graph --decorate The "Big Three" Combo:  (This is the "Pro" view included in your script).
 
 git log -S "code snippet": (The "Pickaxe") Searches the actual code for when a specific string was added or removed.
 git log -p	Shows the actual code changes.
