@@ -15,7 +15,8 @@ if (!(Test-Path -Path $TargetProfile)) {
 # Define the functions to add (name and code)
 $functionsToAdd = @(
     @{ Name = 'New-ProjectFolders'; Code = "function New-ProjectFolders {`n    & 'C:\Users\catch\OneDrive\Documents\projects\projects setup info cheats\setting up new repository\scripts\default repository folders.ps1'`n}"}
-    @{ Name = 'git-commit-push'; Code = "function git-commit-push {`n    & 'C:\Users\catch\OneDrive\Documents\projects\projects setup info cheats\setting up new repository\scripts\git stage commit push.ps1'`n}"}
+    @{ Name = 'gitcp'; Code = "function git-commit-push {`n    & 'C:\Users\catch\OneDrive\Documents\projects\projects setup info cheats\setting up new repository\scripts\git stage commit push.ps1'`n}"}
+    @{ Name = 'profileupdate'; Code = "function VsCode-Profile-Update {`n    & 'C:\Users\catch\OneDrive\Documents\projects\toolbox\profile vscode\scripts\update vscode profile.ps1'`n}"}
 )
 
 $added = @()

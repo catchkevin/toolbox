@@ -1,13 +1,36 @@
-# 1. Verification & Context (Design Header)
+# 1. Verification & Context (Your Standard Header)
 $ErrorActionPreference = "Stop"
+$VariableContext = "GIT SMART SYNC (REBASE WORKFLOW) V1"
 
 $currentDir = Get-Location
 $currentBranch = (git branch --show-current)
 
-Write-Host "`n****************************************************" -ForegroundColor White
-Write-Host " CONTEXT HEADER: $currentDir" -ForegroundColor Cyan
-Write-Host " BRANCH        : $currentBranch" -ForegroundColor Cyan
+# --- DESIGN: CONTEXT HEADER ---
 Write-Host "****************************************************" -ForegroundColor White
+Write-Host " CONTEXT HEADER: $VariableContext" -ForegroundColor Cyan
+Write-Host " DIRECTORY      : $currentDir" -ForegroundColor White
+Write-Host " BRANCH         : $currentBranch" -ForegroundColor White
+Write-Host "****************************************************" -ForegroundColor White
+
+# --- DESIGN: PURPOSE AND PROMPTS HEADER ---
+Write-Host "****************************************************" -ForegroundColor White
+Write-Host " Script Purpose and Prompts" -ForegroundColor Yellow
+Write-Host ""
+Write-Host " This script automates a clean Git workflow by"
+Write-Host " performing the following steps:"
+Write-Host ""
+Write-Host " 1. Stage and Commit local changes (Safety First)"
+Write-Host " 2. Pull Remote updates using --rebase (Clean History)"
+Write-Host " 3. Push finalized work to GitHub"
+Write-Host "****************************************************" -ForegroundColor White
+
+# --- NEW PROMPT: CLEAR TERMINAL ---
+Write-Host "`nDo you want to clear script terminal before running this script?" -ForegroundColor White
+Write-Host "[Y]es | [N]o: " -ForegroundColor White -NoNewline
+$clearChoice = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
+Write-Host $clearChoice
+
+if ($clearChoice -eq 'y') { Clear-Host }
 
 # --- 2. Check for New Project vs. Existing ---
 if (!(Test-Path ".git")) {
@@ -22,43 +45,22 @@ if (!(Test-Path ".git")) {
         if (![string]::IsNullOrWhiteSpace($repoUrl)) {
             git remote add origin $repoUrl
             git branch -M main
+            $currentBranch = "main"
             Write-Host "Initialized and linked to origin." -ForegroundColor Green
         }
     } else { return }
 }
 
-# --- 3. The SMART PULL Step ---
-Write-Host "`nChecking for updates (Git Pull)... " -ForegroundColor Cyan -NoNewline
-git pull origin $currentBranch --rebase
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "`n[!] PULL BLOCKED: History mismatch." -ForegroundColor Yellow
-    Write-Host "Options: [F]orce Local | [Q]uit: " -ForegroundColor White -NoNewline
-    $fixChoice = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
-    Write-Host $fixChoice
-    
-    if ($fixChoice -eq "f") {
-        $GLOBAL:ForcePushRequired = $true
-    } else {
-        git rebase --abort 2>$null
-        return
-    }
-} else {
-    Write-Host "Synced." -ForegroundColor Gray
-}
-
-# --- 4. Readiness & Staging ---
-Write-Host "`nStage files for commit? [Y]es | [Q]uit: " -ForegroundColor White -NoNewline
+# --- 3. Stage & Commit (The "Option B" approach) ---
+Write-Host "`nStage all changes? [Y]es | [Q]uit: " -ForegroundColor White -NoNewline
 $ready = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
 Write-Host $ready
 
 if ($ready -eq "y") {
-    Write-Host "Staging files..." -ForegroundColor Gray
     git add .
     git status -s
 } else { return }
 
-# --- 5. Description Input ---
 Write-Host "`nEnter Commit Description: " -ForegroundColor White -NoNewline
 $commitMsg = Read-Host 
 if ([string]::IsNullOrWhiteSpace($commitMsg)) { 
@@ -66,37 +68,50 @@ if ([string]::IsNullOrWhiteSpace($commitMsg)) {
     return 
 }
 
-# --- 6. Review & Logic ---
-Write-Host "Review: `"$commitMsg`"" -ForegroundColor Cyan
-Write-Host "Options: [Y] Accept | [R]edo | [Q]uit: " -ForegroundColor White -NoNewline
+Write-Host "Commit locally? [Y] Accept | [Q] Quit: " -ForegroundColor White -NoNewline
 $review = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
 Write-Host $review
 
-if ($review -eq "q") { return }
-if ($review -eq "r") { 
-    Write-Host "Redo selected. Please restart script." -ForegroundColor Yellow
-    return 
+if ($review -eq "y") {
+    git commit -m "$commitMsg"
+    Write-Host "Local commit saved." -ForegroundColor Gray
+} else { return }
+
+# --- 4. The SMART PULL (Rebase happens on a clean directory) ---
+Write-Host "`nSyncing with remote (Pull --rebase)... " -ForegroundColor Cyan -NoNewline
+git pull origin $currentBranch --rebase
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "`n[!] CONFLICT DETECTED." -ForegroundColor Yellow
+    Write-Host "Options: [F]orce Local Overwrite | [Q] Abort & Resolve Manually: " -ForegroundColor White -NoNewline
+    $fixChoice = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
+    Write-Host $fixChoice
+    
+    if ($fixChoice -eq "f") {
+        $GLOBAL:ForcePushRequired = $true
+        git rebase --abort 2>$null
+    } else {
+        git rebase --abort 2>$null
+        Write-Host "Rebase aborted. Please fix conflicts manually." -ForegroundColor Red
+        return
+    }
+} else {
+    Write-Host "Remote changes integrated." -ForegroundColor Gray
 }
 
-# --- 7. Finalize (Commit & Push) ---
-Write-Host "`nFinalize & Push to GitHub? [Y]es | [Q]uit: " -ForegroundColor White -NoNewline
+# --- 5. Final Push ---
+Write-Host "`nPush to GitHub? [Y]es | [Q]uit: " -ForegroundColor White -NoNewline
 $lastCheck = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown").Character.ToString().ToLower()
 Write-Host $lastCheck
 
 if ($lastCheck -eq "y") {
-    git commit -m "$commitMsg"
-    Write-Host "Local commit saved." -ForegroundColor Gray
-
     if ($GLOBAL:ForcePushRequired) {
         git push origin $currentBranch --force
         $GLOBAL:ForcePushRequired = $false 
+        Write-Host "Force pushed successfully." -ForegroundColor Yellow
     } else {
-        $prevErrorAction = $ErrorActionPreference
-        $ErrorActionPreference = "SilentlyContinue"
         $upstream = git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null
-        $ErrorActionPreference = $prevErrorAction
-
-        if ($null -eq $upstream -or $LASTEXITCODE -ne 0) {
+        if ($LASTEXITCODE -ne 0) {
             git push -u origin $currentBranch
         } else {
             git push

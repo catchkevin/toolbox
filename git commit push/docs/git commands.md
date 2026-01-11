@@ -1,5 +1,17 @@
 # Git Commands
 
+before running master script
+git add .
+git commit -m "text"
+
+I like this add too:
+# 3. Commit with a timestamp or a generic message
+# (You could also pass a message as an argument)
+MESSAGE=${1:-"Auto-update $(date +'%Y-%m-%d %H:%M:%S')"}
+git commit -m "$MESSAGE"
+
+
+
 1. git status (The "Current Inventory" Check)
 You should run this constantly. It tells you exactly what is happening in your workspace right now before you make a save point.
 
@@ -76,3 +88,10 @@ If you ever wonder "Where is this actually pushing to?", use this.
     What it does: Lists the URLs of the cloud repositories (like GitHub) your local folder is linked to.
 
     Why use it: Useful if you need to verify you are pushing to the correct GitHub account or organization.
+8.  git pull
+    1.  -rebase
+        1.  You only need to pull if Git rejects your push. This happens if you (or someone else) pushed changes from a different device that your current computer doesn't know about yet.
+        2.  Using --rebase keeps your commit history linear and "cleaner" by putting your new changes on top of the latest changes from the server, rather than creating a messy "Merge commit" every time you run your script.
+        3.  Why use --rebase?
+            1.  In a standard git pull, Git performs a Merge. This often creates a "Merge commit" (e.g., "Merge branch 'main' of github.com..."), which can make your project history look like a tangled web of lines.
+            2.  Rebase is used to keep a linear history. Instead of joining two branches with a new commit, it takes your local commits, "lifts" them up, pulls the new changes from the server, and then places your commits back down on top. It looks like you did all your work after the latest updates, even if you didn't.

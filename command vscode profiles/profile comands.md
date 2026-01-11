@@ -2,3 +2,8 @@
 ```powershell
 . $PROFILE
 ```
+
+
+. $PROFILE.CurrentUserAllHosts
+
+. $profile

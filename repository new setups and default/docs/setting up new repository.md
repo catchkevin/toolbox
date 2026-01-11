@@ -77,5 +77,3 @@ Run Script ../default repository folders.ps1
 The & symbol is the "Call Operator." It tells PowerShell: "Go to this location and execute whatever is there."
 
 Because your terminal is "pointing" at your New Project folder, the mkdir commands inside the script will build the folders right where you want them.
-
-"docs", "release_notes"
