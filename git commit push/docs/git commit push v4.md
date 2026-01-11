@@ -1,3 +1,11 @@
+# ************************************************
+# Helper Information
+# ------------------------------------------------
+# Account: catchkevin75
+# Gemini Support Name: Git stage, commit, push automation script
+
+# ************************************************
+
 # Git Workflow Manager V2
 
 A high-performance PowerShell utility designed to simplify Git lifecycle management. This script acts as an interactive "command center," providing a safer, more intuitive alternative to running raw terminal commands.
